@@ -19,6 +19,7 @@ from .format_engine import ExcelOperations
 from .operations import preview_operations
 from .workbook_context import analyze_workbook, WorkbookContext
 from .orchestrator import preview_workspace, run_workspace, rollback_workspace
+from .session import WorkbookSession
 
 
 def _qapp():
@@ -94,6 +95,7 @@ class MainWindow(_QMainWindow):
         self.engine = ExcelEngine()
         self.current_path: Path | None = None
         self.context: WorkbookContext | None = None
+        self.session: WorkbookSession | None = None
         self.last_edit_sheet: str | None = None
         self.last_edit_cell: str | None = None
         self.setWindowTitle("Excel Power Engine v0.9 — مساحة العمل الذكية")
@@ -177,7 +179,8 @@ class MainWindow(_QMainWindow):
         try:
             selected = self.sheet_combo.currentText() or None
             cell = self.viewer_cell.text().strip().upper() or None
-            self.context = analyze_workbook(self.current_path, selected_sheet=selected, selected_cell=cell)
+            self.session = WorkbookSession.open(self.current_path, selected_sheet=selected, selected_cell=cell)
+            self.context = self.session.workbook_context
             self._render_context()
             self._apply_context_suggestions()
             log_event("workbook-context", path=str(self.current_path), details={"sheet_count": self.context.sheet_count, "selected_sheet": self.context.selected_sheet})
@@ -594,7 +597,7 @@ class MainWindow(_QMainWindow):
 
     def _workspace_preview(self):
         try:
-            result=preview_workspace(self.current_path,self._workspace_payload())
+            result=preview_workspace(self.session or self.current_path,self._workspace_payload())
             self.ws_source_label.setText(self.current_path.name)
             self.ws_result.setPlainText(json.dumps(result,ensure_ascii=False,indent=2,default=str))
             log_event("workspace-preview",path=str(self.current_path),details={"operation_count":result.get("operation_count")})
@@ -605,7 +608,7 @@ class MainWindow(_QMainWindow):
             out=self.ws_output.text().strip()
             if not out:
                 out=str(self.current_path.with_name(self.current_path.stem+"_WORKSPACE"+self.current_path.suffix))
-            result=run_workspace(self.current_path,self._workspace_payload(),out,backup=True,visible=False,open_after=True)
+            result=run_workspace(self.session or self.current_path,self._workspace_payload(),out,backup=True,visible=False,open_after=True)
             self.ws_result.setPlainText(json.dumps(result,ensure_ascii=False,indent=2,default=str))
             self.last_output=Path(out)
             self.last_edit_sheet=(result.get("applied_operations") or [{}])[-1].get("result",{}).get("sheet") if result.get("applied_operations") else self.sheet_combo.currentText()
@@ -635,7 +638,7 @@ class MainWindow(_QMainWindow):
             self._set_path(Path(path))
 
     def _set_path(self, path: Path):
-        self.current_path=path.resolve(); self.path_edit.setText(str(self.current_path))
+        self.current_path=path.resolve(); self.session=WorkbookSession.open(self.current_path); self.context=self.session.workbook_context; self.path_edit.setText(str(self.current_path))
         if hasattr(self, "ws_source_label"): self.ws_source_label.setText(self.current_path.name)
         sheets=list(workbook_sheets(self.current_path).keys())
         self.sheet_combo.clear(); self.sheet_combo.addItems(sheets)
