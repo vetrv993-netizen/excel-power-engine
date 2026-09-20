@@ -94,7 +94,7 @@ class ThemeManager:
             return preference
         from PySide6.QtGui import QGuiApplication
 
-        color = QGuiApplication.palette().color(QGuiApplication.palette().window())
+        color = QGuiApplication.palette().window().color()
         return "dark" if color.lightness() < 128 else "light"
 
     def apply(self, preference: str | None = None) -> str:
