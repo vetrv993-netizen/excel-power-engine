@@ -19,7 +19,9 @@ from .format_engine import ExcelOperations
 from .operations import preview_operations
 from .workbook_context import analyze_workbook, WorkbookContext
 from .orchestrator import preview_workspace, run_workspace, rollback_workspace
+from .theme import ThemeManager
 from .session import WorkbookSession
+from . import __version__
 
 
 def _qapp():
@@ -33,28 +35,6 @@ def _qapp():
     except Exception:
         pass
     return app
-
-
-def _style(app):
-    app.setStyleSheet(r"""
-    QWidget { font-family: "Segoe UI"; font-size: 10pt; }
-    QMainWindow, QDialog { background: #f7f8fa; }
-    QLineEdit, QComboBox, QSpinBox, QTableWidget, QTextEdit, QListWidget {
-        background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px;
-    }
-    QLineEdit:focus, QComboBox:focus, QTextEdit:focus { border: 2px solid #2563eb; }
-    QPushButton {
-        background: #2563eb; color: white; border: none; border-radius: 6px; padding: 8px 14px;
-    }
-    QPushButton:hover { background: #1d4ed8; }
-    QPushButton:disabled { background: #94a3b8; }
-    QTabWidget::pane { border: 1px solid #cbd5e1; background: white; }
-    QTabBar::tab { padding: 8px 14px; }
-    QTabBar::tab:selected { background: white; border-bottom: 2px solid #2563eb; }
-    QGroupBox { border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 12px; padding: 10px; }
-    QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }
-    QHeaderView::section { background: #e2e8f0; border: none; padding: 5px; }
-    """)
 
 
 try:
@@ -92,13 +72,16 @@ class MainWindow(_QMainWindow):
         self.QMessageBox = QMessageBox
         self.QCheckBox = QCheckBox
 
+        from PySide6.QtWidgets import QApplication
+        self.theme_manager = ThemeManager(QApplication.instance())
         self.engine = ExcelEngine()
         self.current_path: Path | None = None
         self.context: WorkbookContext | None = None
         self.session: WorkbookSession | None = None
         self.last_edit_sheet: str | None = None
         self.last_edit_cell: str | None = None
-        self.setWindowTitle("Excel Power Engine v0.9 — مساحة العمل الذكية")
+        display_version = ".".join(__version__.split(".")[:2])
+        self.setWindowTitle(f"Excel Power Engine v{display_version} — مساحة العمل الذكية")
         self.resize(1280, 820)
         self.tabs = self.QTabWidget()
         self.setCentralWidget(self.tabs)
@@ -109,8 +92,39 @@ class MainWindow(_QMainWindow):
         self._build_intelligence_tab()
         self._build_operations_tab()
         self._build_workspace_tab()
+        self._build_settings_tab()
         self._build_audit_tab()
         self._refresh_audit()
+
+    def _build_settings_tab(self):
+        root = self.QWidget()
+        layout = self.QVBoxLayout(root)
+        box = self.QGroupBox("الإعدادات")
+        form = self.QFormLayout(box)
+        self.theme_combo = self.QComboBox()
+        self.theme_combo.addItem("نهاري", "light")
+        self.theme_combo.addItem("ليلي", "dark")
+        self.theme_combo.addItem("تلقائي", "auto")
+        self.theme_combo.setCurrentIndex(
+            max(0, self.theme_combo.findData(self.theme_manager.preference()))
+        )
+        self.theme_combo.currentIndexChanged.connect(self._theme_changed)
+        form.addRow("مظهر الواجهة:", self.theme_combo)
+        self.theme_status = self.QLabel()
+        form.addRow("الوضع الحالي:", self.theme_status)
+        layout.addWidget(box)
+        layout.addStretch()
+        self.tabs.addTab(root, "الإعدادات")
+        self._apply_theme(self.theme_manager.preference())
+
+    def _theme_changed(self):
+        self._apply_theme(self.theme_combo.currentData())
+
+    def _apply_theme(self, preference):
+        active = self.theme_manager.apply(preference)
+        if hasattr(self, "theme_status"):
+            labels = {"light": "نهاري", "dark": "ليلي"}
+            self.theme_status.setText(labels[active])
 
     def _build_file_tab(self):
         root = self.QWidget()
@@ -179,7 +193,11 @@ class MainWindow(_QMainWindow):
         try:
             selected = self.sheet_combo.currentText() or None
             cell = self.viewer_cell.text().strip().upper() or None
-            self.session = WorkbookSession.open(self.current_path, selected_sheet=selected, selected_cell=cell)
+            self.session = WorkbookSession.open(
+                self.current_path,
+                selected_sheet=selected,
+                selected_cell=cell,
+            )
             self.context = self.session.workbook_context
             self._render_context()
             self._apply_context_suggestions()
@@ -638,7 +656,10 @@ class MainWindow(_QMainWindow):
             self._set_path(Path(path))
 
     def _set_path(self, path: Path):
-        self.current_path=path.resolve(); self.session=WorkbookSession.open(self.current_path); self.context=self.session.workbook_context; self.path_edit.setText(str(self.current_path))
+        self.current_path=path.resolve()
+        self.session=WorkbookSession.open(self.current_path)
+        self.context=self.session.workbook_context
+        self.path_edit.setText(str(self.current_path))
         if hasattr(self, "ws_source_label"): self.ws_source_label.setText(self.current_path.name)
         sheets=list(workbook_sheets(self.current_path).keys())
         self.sheet_combo.clear(); self.sheet_combo.addItems(sheets)
@@ -764,7 +785,7 @@ class MainWindow(_QMainWindow):
 
 
 def main() -> int:
-    app=_qapp(); _style(app); w=MainWindow(); w.show(); return app.exec()
+    app=_qapp(); w=MainWindow(); w.show(); return app.exec()
 
 
 if __name__ == "__main__":

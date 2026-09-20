@@ -1,4 +1,5 @@
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from openpyxl import Workbook
 
@@ -48,6 +49,12 @@ def test_keyed_bulk_rejects_duplicates_and_missing(tmp_path):
 
 def test_verification_gate_rejects_unexpected_part_change(tmp_path):
     source, output = tmp_path / "source.xlsx", tmp_path / "out.xlsx"; make_book(source)
-    output.write_bytes(source.read_bytes())
+    with ZipFile(source, "r") as source_zip, ZipFile(output, "w", ZIP_DEFLATED) as output_zip:
+        for item in source_zip.infolist():
+            content = source_zip.read(item.filename)
+            if item.filename == "docProps/core.xml":
+                content = content.replace(b"</cp:coreProperties>", b"<dc:subject>changed</dc:subject></cp:coreProperties>")
+            output_zip.writestr(item, content)
     result = verify_workbook_change(source, output, allowed_changed_parts={"xl/worksheets/sheet1.xml"})
-    assert result.accepted
+    assert not result.accepted
+    assert result.unexpected_changed_parts == ["docProps/core.xml"]

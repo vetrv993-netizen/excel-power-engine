@@ -1,3 +1,15 @@
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+
+try:
+    _version_file = Path(__file__).resolve().parents[2] / "VERSION.txt"
+    __version__ = _version_file.read_text(encoding="utf-8").strip()
+except (OSError, UnicodeError):
+    try:
+        __version__ = version("excel-power-engine")
+    except PackageNotFoundError:
+        __version__ = "unknown"
+
 from .engine import ExcelEngine
 from .inspect import inspect_workbook
 from .safe_edit import EditOperation, SafeEditor
