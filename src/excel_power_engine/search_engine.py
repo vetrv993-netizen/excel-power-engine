@@ -52,7 +52,8 @@ def search_workbook(
     target_sheets = set(sheets) if sheets else None
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        wb = load_workbook(path, read_only=True, data_only=False, keep_vba=True)
+        # Non-streaming mode avoids retaining a ZipExtFile after wb.close().
+        wb = load_workbook(path, read_only=False, data_only=False, keep_vba=False)
     hits: list[SearchHit] = []
     try:
         for ws in wb.worksheets:

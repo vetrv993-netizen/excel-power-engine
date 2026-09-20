@@ -1,8 +1,12 @@
-# Excel Power Engine v0.9
+# Excel Power Engine v0.10
 
 محرك Excel/XLSM متعدد المسارات مع ذكاء الخلايا، الإدخال الشامل، البحث، التنسيق، الحدود، الدمج، الطباعة، PDF وواجهة عربية.
 
-## أبرز v0.9
+## أبرز v0.10
+- WorkbookSession مركزي يثبت بصمة الملف ويشارك السياق بين Workspace وGUI.
+- Search Result Sets تتحول إلى Target Sets قابلة لإعادة الاستخدام مع provenance وتجميع حسب الورقة.
+- Verification Gate حقيقي قبل اعتماد كل خطوة تعديل: وجود الناتج، القيم المستهدفة، أخطاء الصيغ، VBA/x14، والأجزاء المتغيرة.
+- `keyed-bulk` متاح داخل Workspace مع سياسة رفض المفاتيح المفقودة أو المكررة افتراضيًا.
 - Search: exact / contains / starts / ends / regex.
 - Target Engine: cell / range / multi-range / row / column.
 - Native formatting and borders on existing XLSX/XLSM.
@@ -48,11 +52,11 @@ excel-power workflow-run file.xlsm --workflow examples/workflow_demo.json --outp
 
 التحليل قراءة فقط ولا يحفظ المصنف. راجع `docs/V08_WORKBOOK_CONTEXT_AR.md`.
 
-## v0.9 — Smart Workspace
+## v0.10 — Verified Smart Workspace
 
-- Unified workspace context and operation orchestration.
-- Preview composite operations before execution.
-- Search results can become workflow targets.
-- Bulk + formatting + borders + merge + print/PDF in one workflow.
-- Transaction backup and rollback via `workspace-rollback`.
+- Preview → Backup → Execute → Verify → Visual Check هو مسار Workspace.
+- `search` يسجل Result Set؛ وتستطيع العملية التالية استخدام `target_set` مع `selected_hits`.
+- كل خطوة تعديل تكتب في staging، وتُرفض قبل النشر إن فشل Verification Gate.
+- ينشئ Workspace manifest بجانب الناتج (`.transaction.json`) ويستخدمه rollback لتحديد backup.
+- التحقق البصري له سياسة `optional` أو `required`؛ تتطلب السياسة الثانية Excel/Windows وهدفًا بصريًا قابلًا للفتح.
 - Arabic GUI tab: `مساحة العمل الذكية`.

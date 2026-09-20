@@ -92,10 +92,13 @@ def resolve_target_specs(path: str | Path, sheet: str, text: str, *, max_cells: 
         raise KeyError(f"Worksheet not found: {sheet}")
     # Read the used dimensions with openpyxl only for discovery; writes remain in the engine.
     from openpyxl import load_workbook
-    wb = load_workbook(path, read_only=True, data_only=False, keep_vba=True)
-    ws = wb[sheet]
-    max_row = max(1, ws.max_row)
-    max_col = max(1, ws.max_column)
+    wb = load_workbook(path, read_only=True, data_only=False, keep_vba=False)
+    try:
+        ws = wb[sheet]
+        max_row = max(1, ws.max_row)
+        max_col = max(1, ws.max_column)
+    finally:
+        wb.close()
     out: list[str] = []
     for spec in specs:
         sr = spec.start_row if spec.start_row is not None else 1
