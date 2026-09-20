@@ -28,8 +28,17 @@ Smart Recalculate + Excel Native Bridge + فحوص VBA/x14 وأخطاء الصي
 - تنفيذ جماعي عبر SafeEdit مع Backup وحماية VBA وx14.
 - فتح Excel بعد التنفيذ وإظهار أول خلية معدلة بصريًا.
 
-## v0.7 — التالي المقترح
-إضافة الربط بالمفتاح (Keyed Mapping) على مستوى المربية/رقم السجل، وقوالب إدخال ذكية، ثم تطوير واجهة Dashboard أكثر احترافية.
+## v0.7 — مكتملة
+البحث، محرك الأهداف، التنسيق والحدود والدمج والطباعة وPDF وWorkflow.
+
+## v0.8 — مكتملة
+Workbook Context للقراءة والتحليل والاقتراحات.
+
+## v0.9 — مكتملة
+Workspace Orchestrator مع backup وrollback.
+
+## v0.10 — مكتملة
+WorkbookSession، Search Result/Target Sets، keyed-bulk، Verification Gate، وtransaction manifest.
 
 ## حالة الاختبارات
-تمت إضافة اختبارات v0.6 للذكاء الخلوي والإدخال الشامل، وإجمالي الاختبارات الحالية: 25 اختبارًا ناجحًا في بيئة البناء.
+تغطي suite الحالية 41 اختبارًا بعد إضافة regression لـWorkspace Search وSearch→Target→Bulk وVerification/Keyed Mapping.

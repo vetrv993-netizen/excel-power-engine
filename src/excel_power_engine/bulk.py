@@ -54,21 +54,21 @@ def read_data_file(path: str | Path, sheet: str | None = None) -> list[list[str]
         return parse_matrix(p.read_text(encoding="utf-8-sig"), delimiter)
     if p.suffix.lower() in {".xlsx", ".xlsm", ".xltx", ".xltm"}:
         from openpyxl import load_workbook
-        wb = load_workbook(p, read_only=True, data_only=False, keep_vba=True)
-        ws = wb[sheet or wb.sheetnames[0]]
-        out: list[list[str]] = []
-        for row in ws.iter_rows(values_only=False):
-            values = []
-            for c in row:
-                if c.value is None:
-                    values.append("")
-                else:
-                    values.append(str(c.value))
-            while values and values[-1] == "":
-                values.pop()
-            if values:
-                out.append(values)
-        return out
+        wb = load_workbook(p, read_only=True, data_only=False, keep_vba=False)
+        try:
+            ws = wb[sheet or wb.sheetnames[0]]
+            out: list[list[str]] = []
+            for row in ws.iter_rows(values_only=False):
+                values = []
+                for c in row:
+                    values.append("" if c.value is None else str(c.value))
+                while values and values[-1] == "":
+                    values.pop()
+                if values:
+                    out.append(values)
+            return out
+        finally:
+            wb.close()
     raise ValueError(f"Unsupported bulk data file: {p.suffix}")
 
 
@@ -230,19 +230,33 @@ def keyed_preview(path: str | Path, target_sheet: str, target_key_column: str, s
     # Read target key column row-by-row until the used area. We use openpyxl only for
     # reading; the final write still goes through SafeEditor/OOXML.
     from openpyxl import load_workbook
-    wb = load_workbook(p, read_only=True, data_only=False, keep_vba=True)
-    ws = wb[target_sheet]
-    target_map: dict[str, int] = {}
-    for row_idx in range(1, ws.max_row + 1):
-        value = ws[f"{target_key_column.upper()}{row_idx}"].value
-        if value is None:
-            continue
-        target_map[_norm_key(value)] = row_idx
+    wb = load_workbook(p, read_only=True, data_only=False, keep_vba=False)
+    try:
+        ws = wb[target_sheet]
+        target_map: dict[str, int] = {}
+        duplicate_target_keys: list[str] = []
+        for row_idx in range(1, ws.max_row + 1):
+            value = ws[f"{target_key_column.upper()}{row_idx}"].value
+            if value is None:
+                continue
+            key = _norm_key(value)
+            if key in target_map:
+                duplicate_target_keys.append(key)
+            else:
+                target_map[key] = row_idx
+    finally:
+        wb.close()
     changes: list[BulkChange] = []
     missing: list[str] = []
+    duplicate_source_keys: list[str] = []
+    seen_source: set[str] = set()
     ops: list[EditOperation] = []
     for src in source_rows:
         key = _norm_key(src.get(source_key_field))
+        if key and key in seen_source:
+            duplicate_source_keys.append(key)
+            continue
+        seen_source.add(key)
         if not key:
             missing.append("")
             continue
@@ -266,6 +280,8 @@ def keyed_preview(path: str | Path, target_sheet: str, target_key_column: str, s
         "mapping": mapping,
         "matched_records": len(source_rows) - len(missing),
         "missing_keys": missing,
+        "duplicate_target_keys": list(dict.fromkeys(duplicate_target_keys)),
+        "duplicate_source_keys": list(dict.fromkeys(duplicate_source_keys)),
         "changes": [c.as_dict() for c in changes],
         "operations": ops,
     }
@@ -277,10 +293,10 @@ def _norm_key(value: Any) -> str:
 
 def keyed_execute(path: str | Path, target_sheet: str, target_key_column: str, source_rows: list[dict[str, Any]], source_key_field: str, mapping: dict[str, str], output: str | Path | None = None, *, create_backup: bool = True) -> dict[str, Any]:
     plan = keyed_preview(path, target_sheet, target_key_column, source_rows, source_key_field, mapping)
-    if plan["missing_keys"]:
+    if plan["missing_keys"] or plan["duplicate_target_keys"] or plan["duplicate_source_keys"]:
         return {k: v for k, v in plan.items() if k != "operations"} | {"executed": False, "reason": "missing_keys"}
     report = SafeEditor().edit_cells(path, target_sheet, plan["operations"], output, create_backup=create_backup)
     result = report.as_dict()
-    result.update({k: v for k, v in plan.items() if k != "operations"})
+    result.update({k: ([x.as_dict() for x in v] if k == "changes" else v) for k, v in plan.items() if k != "operations"})
     result["executed"] = True
     return result
