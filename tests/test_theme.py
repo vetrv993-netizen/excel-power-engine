@@ -22,6 +22,24 @@ def test_theme_manager_applies_and_persists_preferences():
     assert "#f7f8fa" in app.styleSheet()
 
 
+def test_theme_manager_auto_resolves_and_persists():
+    from PySide6.QtWidgets import QApplication
+    from excel_power_engine.theme import ThemeManager
+
+    app = QApplication.instance() or QApplication([])
+    app.setApplicationName("Excel Power Engine Auto Theme Test")
+    app.setOrganizationName("Excel Power Engine Tests")
+    manager = ThemeManager(app)
+    manager.settings.clear()
+
+    active = manager.apply("auto")
+
+    assert active in {"light", "dark"}
+    assert manager.preference() == "auto"
+    assert manager.resolved_theme("auto") in {"light", "dark"}
+    assert app.styleSheet()
+
+
 def test_main_window_exposes_settings_tab():
     from PySide6.QtWidgets import QApplication
     from excel_power_engine.gui import MainWindow
