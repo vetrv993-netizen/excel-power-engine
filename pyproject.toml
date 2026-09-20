@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "excel-power-engine"
+version = "0.9.0"
+description = "Smart multi-engine Excel/XLSM operations, search, bulk editing, formatting, printing, PDF and Arabic desktop UI toolkit"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "openpyxl==3.1.5",
+  "pandas>=2.2,<3",
+  "XlsxWriter>=3.2,<4",
+  "lxml>=5,<7",
+]
+
+[project.optional-dependencies]
+fast = [
+  "polars>=1,<2",
+  "fastexcel>=0.14,<1",
+  "python-calamine>=0.4,<1",
+]
+security = [
+  "oletools>=0.60,<1",
+]
+windows = [
+  "xlwings>=0.33,<1",
+  "pywin32>=306; platform_system == 'Windows'",
+]
+ui = [
+  "PySide6>=6.7,<7",
+]
+dev = [
+  "pytest>=8,<10",
+]
+full = [
+  "polars>=1,<2",
+  "fastexcel>=0.14,<1",
+  "python-calamine>=0.4,<1",
+  "oletools>=0.60,<1",
+  "xlwings>=0.33,<1",
+  "PySide6>=6.7,<7",
+]
+
+[project.scripts]
+excel-power = "excel_power_engine.cli:main"
+excel-power-gui = "excel_power_engine.gui:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

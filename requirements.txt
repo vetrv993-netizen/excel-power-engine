@@ -1,0 +1,15 @@
+openpyxl==3.1.5
+pandas>=2.2,<3
+XlsxWriter>=3.2,<4
+lxml>=5,<7
+# Optional performance stack:
+# polars>=1,<2
+# fastexcel>=0.14,<1
+# python-calamine>=0.4,<1
+# Optional VBA inspection:
+# oletools>=0.60,<1
+# Optional Windows Excel bridge:
+# xlwings>=0.33,<1
+# pywin32>=306; platform_system == "Windows"
+# Optional UI:
+# PySide6>=6.7,<7

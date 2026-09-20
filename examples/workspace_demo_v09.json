@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "kind": "search",
+      "sheet": "الشهر الخامس",
+      "payload": {"term": "التهاب", "mode": "contains", "max_results": 2000}
+    },
+    {
+      "kind": "format",
+      "sheet": "الشهر الخامس",
+      "ranges": ["H11:I70"],
+      "payload": {"fill": "#FFF2CC", "font_color": "#000000", "bold": true}
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"kind": "format", "sheet": "الشهر الخامس", "ranges": ["H11:H70", "H76:H135"], "payload": {"fill": "#FFF2CC", "bold": true, "wrap": true}},
+    {"kind": "borders", "sheet": "الشهر الخامس", "ranges": ["F11:I70", "F76:I135"], "payload": {"line_style": 1, "weight": 2}},
+    {"kind": "print-setup", "sheet": "الشهر الخامس", "payload": {"print_area": "$A$1:$AI$332", "orientation": "portrait", "fit_width": 1, "fit_height": 0}}
+  ]
+}
