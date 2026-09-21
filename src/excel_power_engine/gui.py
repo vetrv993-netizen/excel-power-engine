@@ -21,6 +21,11 @@ from .workbook_context import analyze_workbook, WorkbookContext
 from .orchestrator import preview_workspace, run_workspace, rollback_workspace
 from .theme import ThemeManager
 from .session import WorkbookSession
+from .command_intelligence import build_command_plan, parse_command
+from .semantic_engine import SemanticWorkbook
+from .inspector import inspect_cell
+from .suggestions import smart_suggestions
+from .history import OperationHistory
 from . import __version__
 
 
@@ -50,7 +55,7 @@ class MainWindow(_QMainWindow):
             QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
             QFileDialog, QTabWidget, QComboBox, QSpinBox, QGroupBox, QFormLayout,
             QTableWidget, QTableWidgetItem, QAbstractItemView, QTextEdit, QMessageBox,
-            QCheckBox
+            QCheckBox, QListWidget, QListWidgetItem, QFrame, QSplitter, QAbstractSpinBox
         )
         super().__init__()
         self.QWidget = QWidget
@@ -71,9 +76,14 @@ class MainWindow(_QMainWindow):
         self.QTextEdit = QTextEdit
         self.QMessageBox = QMessageBox
         self.QCheckBox = QCheckBox
+        self.QListWidget = QListWidget
+        self.QListWidgetItem = QListWidgetItem
+        self.QFrame = QFrame
+        self.QSplitter = QSplitter
 
         from PySide6.QtWidgets import QApplication
         self.theme_manager = ThemeManager(QApplication.instance())
+        self.history = OperationHistory()
         self.engine = ExcelEngine()
         self.current_path: Path | None = None
         self.context: WorkbookContext | None = None
@@ -82,9 +92,42 @@ class MainWindow(_QMainWindow):
         self.last_edit_cell: str | None = None
         display_version = ".".join(__version__.split(".")[:2])
         self.setWindowTitle(f"Excel Power Engine v{display_version} — مساحة العمل الذكية")
-        self.resize(1280, 820)
+        self.resize(1440, 900)
         self.tabs = self.QTabWidget()
-        self.setCentralWidget(self.tabs)
+        self.tabs.setDocumentMode(True)
+        shell = self.QWidget()
+        shell_layout = self.QVBoxLayout(shell)
+        shell_layout.setContentsMargins(12, 12, 12, 12)
+        shell_layout.setSpacing(10)
+
+        hero = self.QFrame()
+        hero.setObjectName("hero")
+        hero_layout = self.QVBoxLayout(hero)
+        title_row = self.QHBoxLayout()
+        title = self.QLabel("Excel Power Engine")
+        title.setObjectName("heroTitle")
+        subtitle = self.QLabel(f"v{__version__} · منصة تحرير Excel الذكية")
+        subtitle.setObjectName("heroSubtitle")
+        self.global_status = self.QLabel("جاهز — اختر ملف Excel للبدء")
+        self.global_status.setObjectName("statusPill")
+        title_row.addWidget(title); title_row.addWidget(subtitle); title_row.addStretch(); title_row.addWidget(self.global_status)
+        hero_layout.addLayout(title_row)
+        command_row = self.QHBoxLayout()
+        self.command_line = self.QLineEdit()
+        self.command_line.setPlaceholderText("اكتب أمرًا مثل: لوّن عمود الطلاب بالأحمر")
+        self.command_line.setObjectName("commandBox")
+        self.command_preview_btn = self.QPushButton("معاينة الأمر")
+        self.command_preview_btn.setObjectName("primaryButton")
+        self.command_preview_btn.clicked.connect(self._command_preview)
+        self.command_apply_btn = self.QPushButton("تطبيق")
+        self.command_apply_btn.clicked.connect(self._command_execute)
+        self.command_line.returnPressed.connect(self._command_preview)
+        command_row.addWidget(self.command_line, 1); command_row.addWidget(self.command_preview_btn); command_row.addWidget(self.command_apply_btn)
+        hero_layout.addLayout(command_row)
+        shell_layout.addWidget(hero)
+        shell_layout.addWidget(self.tabs, 1)
+        self.setCentralWidget(shell)
+        self._build_smart_command_tab()
         self._build_file_tab()
         self._build_context_tab()
         self._build_viewer_tab()
@@ -96,6 +139,263 @@ class MainWindow(_QMainWindow):
         self._build_audit_tab()
         self._refresh_audit()
 
+    def _build_smart_command_tab(self):
+        root = self.QWidget()
+        layout = self.QVBoxLayout(root)
+        top = self.QHBoxLayout()
+        self.smart_sheet_combo = self.QComboBox()
+        self.smart_column_combo = self.QComboBox()
+        self.smart_target_combo = self.QComboBox()
+        self.smart_target_combo.setEditable(True)
+        top.addWidget(self.QLabel("الورقة:")); top.addWidget(self.smart_sheet_combo, 2)
+        top.addWidget(self.QLabel("العمود من الملف:")); top.addWidget(self.smart_column_combo, 3)
+        top.addWidget(self.QLabel("الهدف:")); top.addWidget(self.smart_target_combo, 3)
+        self.smart_preview_btn = self.QPushButton("معاينة")
+        self.smart_apply_btn = self.QPushButton("تطبيق")
+        self.smart_preview_btn.clicked.connect(self._command_preview)
+        self.smart_apply_btn.clicked.connect(self._command_execute)
+        top.addWidget(self.smart_preview_btn); top.addWidget(self.smart_apply_btn)
+        layout.addLayout(top)
+
+        manual_box = self.QGroupBox("أدوات التحرير اليدوي — تستخدم نفس المحرك والتحقق")
+        manual_row = self.QHBoxLayout(manual_box)
+        self.manual_op_combo = self.QComboBox()
+        self.manual_op_combo.addItems([
+            "لون التعبئة", "لون الخط", "خط عريض", "حجم الخط", "عرض العمود",
+            "حدود", "إخفاء العمود", "إظهار العمود", "محاذاة وسط", "التفاف النص"
+        ])
+        self.manual_color_combo = self.QComboBox()
+        for label, value in [("أحمر", "#FF0000"), ("أخضر", "#00A651"), ("أزرق", "#0070C0"), ("أصفر", "#FFFF00"), ("رمادي", "#D9E1F2"), ("أبيض", "#FFFFFF"), ("أسود", "#000000")]:
+            self.manual_color_combo.addItem(label, value)
+        self.manual_value_spin = self.QSpinBox(); self.manual_value_spin.setRange(1, 120); self.manual_value_spin.setValue(14)
+        self.manual_apply_btn = self.QPushButton("تطبيق يدوي")
+        self.manual_preview_btn = self.QPushButton("معاينة يدوي")
+        self.manual_preview_btn.clicked.connect(self._manual_preview)
+        self.manual_apply_btn.clicked.connect(self._manual_apply)
+        manual_row.addWidget(self.QLabel("الأداة:")); manual_row.addWidget(self.manual_op_combo, 3)
+        manual_row.addWidget(self.QLabel("اللون:")); manual_row.addWidget(self.manual_color_combo, 2)
+        manual_row.addWidget(self.QLabel("القيمة:")); manual_row.addWidget(self.manual_value_spin, 1)
+        manual_row.addWidget(self.manual_preview_btn); manual_row.addWidget(self.manual_apply_btn)
+        layout.addWidget(manual_box)
+
+        splitter = self.QSplitter()
+        left = self.QWidget(); left_l = self.QVBoxLayout(left)
+        plan_box = self.QGroupBox("فهم الأمر وخطة التنفيذ")
+        pf = self.QFormLayout(plan_box)
+        self.smart_plan_text = self.QTextEdit(); self.smart_plan_text.setReadOnly(True)
+        pf.addRow(self.smart_plan_text)
+        left_l.addWidget(plan_box, 3)
+        inspector_box = self.QGroupBox("Smart Inspector")
+        inf = self.QVBoxLayout(inspector_box)
+        self.smart_inspector_text = self.QTextEdit(); self.smart_inspector_text.setReadOnly(True)
+        inspect_btn = self.QPushButton("فحص الخلية الحالية")
+        inspect_btn.clicked.connect(self._smart_inspect_current)
+        inf.addWidget(inspect_btn); inf.addWidget(self.smart_inspector_text)
+        left_l.addWidget(inspector_box, 2)
+
+        right = self.QWidget(); right_l = self.QVBoxLayout(right)
+        columns_box = self.QGroupBox("فهم المصنف — أعمدة وخيارات مولّدة من الملف")
+        cf = self.QVBoxLayout(columns_box)
+        self.smart_columns_table = self.QTableWidget(); self.smart_columns_table.setColumnCount(5)
+        self.smart_columns_table.setHorizontalHeaderLabels(["العمود", "الاسم", "النوع", "النطاق", "عينات"])
+        self.smart_columns_table.setSelectionMode(self.QAbstractItemView.SingleSelection)
+        cf.addWidget(self.smart_columns_table)
+        right_l.addWidget(columns_box, 3)
+        sug_box = self.QGroupBox("اقتراحات ذكية — Preview / Apply / Ignore")
+        sf = self.QVBoxLayout(sug_box)
+        self.smart_suggestions_list = self.QListWidget()
+        sf.addWidget(self.smart_suggestions_list)
+        sug_row = self.QHBoxLayout()
+        self.smart_suggestion_preview = self.QPushButton("معاينة الاقتراح")
+        self.smart_suggestion_preview.clicked.connect(self._preview_suggestion)
+        self.smart_suggestion_apply = self.QPushButton("تطبيق الاقتراح")
+        self.smart_suggestion_apply.clicked.connect(self._apply_suggestion)
+        self.smart_suggestion_ignore = self.QPushButton("تجاهل")
+        self.smart_suggestion_ignore.clicked.connect(self._ignore_suggestion)
+        sug_row.addWidget(self.smart_suggestion_preview); sug_row.addWidget(self.smart_suggestion_apply); sug_row.addWidget(self.smart_suggestion_ignore)
+        sf.addLayout(sug_row)
+        right_l.addWidget(sug_box, 2)
+        hist_box = self.QGroupBox("Operation History")
+        hf = self.QVBoxLayout(hist_box)
+        self.smart_history_list = self.QListWidget(); hf.addWidget(self.smart_history_list)
+        right_l.addWidget(hist_box, 2)
+        splitter.addWidget(left); splitter.addWidget(right)
+        splitter.setSizes([620, 780])
+        layout.addWidget(splitter, 1)
+        self.smart_tab_root = root
+        self.tabs.addTab(root, "المساعد الذكي")
+
+    def _manual_command(self) -> str:
+        target_label = self.smart_target_combo.currentText().strip() if hasattr(self, "smart_target_combo") else ""
+        target = self.smart_target_combo.currentData() if hasattr(self, "smart_target_combo") else None
+        target = target or target_label
+        op = self.manual_op_combo.currentText()
+        color = self.manual_color_combo.currentData()
+        value = self.manual_value_spin.value()
+        # Prefer the semantic column label when present in the selection.
+        title = self.smart_column_combo.currentData() if hasattr(self, "smart_column_combo") else None
+        subject = f"عمود {title}" if title and op in {"لون التعبئة", "لون الخط", "خط عريض", "عرض العمود", "إخفاء العمود", "إظهار العمود"} else (target or "النطاق المحدد")
+        if op == "لون التعبئة": return f"لوّن {subject} باللون الأحمر" if color == "#FF0000" else f"لوّن {subject} باللون {self.manual_color_combo.currentText()}"
+        if op == "لون الخط": return f"غيّر لون الخط إلى {self.manual_color_combo.currentText()}"
+        if op == "خط عريض": return f"اجعل {subject} بالخط العريض"
+        if op == "حجم الخط": return f"غيّر حجم الخط إلى {value}"
+        if op == "عرض العمود": return f"وسع {subject}"
+        if op == "حدود": return f"ضع حدوداً على {target or 'جدول البيانات'}"
+        if op == "إخفاء العمود": return f"أخف {subject}"
+        if op == "إظهار العمود": return f"أظهر {subject}"
+        if op == "محاذاة وسط": return f"محاذاة وسط {target or 'هذا النطاق'}"
+        if op == "التفاف النص": return f"التفاف النص {target or 'هذا النطاق'}"
+        return ""
+
+    def _manual_preview(self):
+        command = self._manual_command()
+        self.command_line.setText(command)
+        self._command_preview()
+
+    def _manual_apply(self):
+        command = self._manual_command()
+        self.command_line.setText(command)
+        self._command_execute()
+
+    def _refresh_smart_controls(self):
+        if not self.context:
+            return
+        sheets = [s.name for s in self.context.sheets]
+        current = self.sheet_combo.currentText() or self.context.selected_sheet
+        self.smart_sheet_combo.blockSignals(True)
+        self.smart_sheet_combo.clear(); self.smart_sheet_combo.addItems(sheets)
+        if current and current in sheets: self.smart_sheet_combo.setCurrentText(current)
+        self.smart_sheet_combo.blockSignals(False)
+        self.smart_column_combo.clear(); self.smart_target_combo.clear()
+        sh = self.context.sheet(current)
+        if not sh:
+            return
+        entries = []
+        for col in sh.columns:
+            rng = f'{col["column"]}{sh.data_start_row or 1}:{col["column"]}{sh.data_end_row or (sh.data_start_row or 1)}'
+            label = f'{col["title"]}  ·  {col["column"]}  ·  {rng}'
+            self.smart_column_combo.addItem(label, col["title"])
+            self.smart_target_combo.addItem(label, rng)
+            entries.append((col, rng))
+        # Add real cell references discovered from sample rows so targets are data-driven.
+        seen_cells = set()
+        for sample in sh.sample_rows:
+            for col_ref in sample.get("values", {}):
+                cell_ref = f"{str(col_ref).upper()}{sample.get('row')}"
+                if cell_ref not in seen_cells:
+                    self.smart_target_combo.addItem(cell_ref, cell_ref)
+                    seen_cells.add(cell_ref)
+                if len(seen_cells) >= 60:
+                    break
+            if len(seen_cells) >= 60:
+                break
+        self.smart_columns_table.setRowCount(len(entries))
+        for r, (col, rng) in enumerate(entries):
+            vals = " | ".join(str(x) for x in col.get("samples", [])[:3])
+            for c, val in enumerate((col["column"], col["title"], col["kind"], rng, vals)):
+                self.smart_columns_table.setItem(r, c, self.QTableWidgetItem(str(val)))
+        self.smart_columns_table.resizeColumnsToContents()
+        self.smart_suggestions_list.clear()
+        for sug in smart_suggestions(self.context, current):
+            item = self.QListWidgetItem(f'• {sug["title"]} — {sug["reason"]}')
+            item.setData(32, sug)
+            self.smart_suggestions_list.addItem(item)
+        self._refresh_smart_history()
+
+    def _refresh_smart_history(self):
+        if not hasattr(self, "smart_history_list"):
+            return
+        self.smart_history_list.clear()
+        for entry in self.history.recent(20):
+            status = entry.get("status", "")
+            self.smart_history_list.addItem(f'{entry.get("time", "")} · {status} · {entry.get("command", "")}')
+
+    def _command_plan(self):
+        if not self.current_path or not self.context:
+            raise ValueError("اختر ملف Excel أولًا")
+        command = self.command_line.text().strip()
+        explicit_target = None
+        parsed = parse_command(command)
+        if parsed is not None and not parsed.target_text and hasattr(self, "smart_target_combo"):
+            explicit_target = self.smart_target_combo.currentData() or self.smart_target_combo.currentText().strip() or None
+        return build_command_plan(command, self.context, sheet=self.smart_sheet_combo.currentText() or self.sheet_combo.currentText(), explicit_target=explicit_target)
+
+    def _command_preview(self):
+        try:
+            plan = self._command_plan()
+            self.smart_plan_text.setPlainText(json.dumps(plan.as_dict(), ensure_ascii=False, indent=2, default=str))
+            self.global_status.setText(f'المعاينة: {plan.status} · {plan.risk}')
+            if plan.operations:
+                from .operations import preview_operations
+                data = preview_operations(plan.operations)
+                self.smart_plan_text.append("\nPreview:\n" + json.dumps(data, ensure_ascii=False, indent=2))
+            self.tabs.setCurrentWidget(self.smart_tab_root)
+            self.history.add(self.command_line.text().strip(), status=f'PREVIEW:{plan.status}', sheet=plan.target.get("sheet"), ranges=[plan.target.get("range", "")] if plan.target.get("range") else [], details=plan.as_dict())
+            self._refresh_smart_history()
+        except Exception as exc:
+            self._error(exc)
+
+    def _command_execute(self):
+        try:
+            plan = self._command_plan()
+            if plan.status != "READY" or not plan.operations:
+                self._command_preview()
+                plan = self._command_plan()
+            if plan.status != "READY" or not plan.operations:
+                return self._warn(plan.explanation + ("\n" + "\n".join(plan.warnings) if plan.warnings else ""))
+            # The existing workspace runner is the single execution path, with backup + verification gate.
+            output = self.current_path.with_name(self.current_path.stem + "_SMART" + self.current_path.suffix)
+            from .orchestrator import run_workspace
+            result = run_workspace(self.session or self.current_path, plan.operations, output, backup=True, visible=False, open_after=False, visual_policy="optional")
+            self.smart_plan_text.setPlainText(json.dumps({"plan": plan.as_dict(), "execution": result}, ensure_ascii=False, indent=2, default=str))
+            self.global_status.setText("تم التنفيذ والتحقق ✓")
+            self.history.add(self.command_line.text().strip(), status="SUCCESS", sheet=plan.target.get("sheet"), ranges=[plan.target.get("range", "")] if plan.target.get("range") else [], details={"output": str(output), "result": result})
+            log_event("natural-command", path=str(self.current_path), details={"command": self.command_line.text(), "plan": plan.as_dict(), "output": str(output)})
+            self._refresh_smart_history()
+            self._warn(f"تم إنشاء نسخة آمنة:\n{output}\n\nواجتازت Verification Gate.")
+        except Exception as exc:
+            self.history.add(self.command_line.text().strip(), status="FAILED", sheet=self.sheet_combo.currentText(), details={"error": str(exc)})
+            self._refresh_smart_history()
+            self._error(exc)
+
+    def _smart_inspect_current(self):
+        if not self.current_path:
+            return self._warn("اختر ملفًا أولًا")
+        try:
+            sheet = self.smart_sheet_combo.currentText() or self.sheet_combo.currentText()
+            cell = self.viewer_cell.text().strip().upper() or "A1"
+            result = inspect_cell(self.current_path, sheet, cell)
+            self.smart_inspector_text.setPlainText(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        except Exception as exc:
+            self._error(exc)
+
+    def _preview_suggestion(self):
+        item = self.smart_suggestions_list.currentItem()
+        if not item:
+            return self._warn("اختر اقتراحًا أولًا")
+        sug = item.data(32) or {}
+        target = sug.get("target")
+        if target:
+            self.smart_target_combo.setCurrentText(target)
+        action = sug.get("action")
+        if action == "column_width":
+            self.command_line.setText(f"وسع عمود {target}")
+        elif action == "borders":
+            self.command_line.setText(f"ضع حدوداً على {target}")
+        elif action == "format_bold":
+            self.command_line.setText("اجعل الصف الأول عنواناً")
+        else:
+            self.command_line.setText("راجع إعدادات الطباعة")
+        self._command_preview()
+
+    def _apply_suggestion(self):
+        self._command_execute()
+
+    def _ignore_suggestion(self):
+        item = self.smart_suggestions_list.currentItem()
+        if item:
+            row = self.smart_suggestions_list.row(item)
+            self.smart_suggestions_list.takeItem(row)
     def _build_settings_tab(self):
         root = self.QWidget()
         layout = self.QVBoxLayout(root)
@@ -201,6 +501,7 @@ class MainWindow(_QMainWindow):
             self.context = self.session.workbook_context
             self._render_context()
             self._apply_context_suggestions()
+            self._refresh_smart_controls()
             log_event("workbook-context", path=str(self.current_path), details={"sheet_count": self.context.sheet_count, "selected_sheet": self.context.selected_sheet})
         except Exception as exc:
             self._error(exc)
@@ -669,7 +970,9 @@ class MainWindow(_QMainWindow):
             self._op_sheet_defaults()
             self._load_view()
             self._refresh_context()
+            self._refresh_smart_controls()
             self._inspect()
+            self.global_status.setText(f"تم تحميل الملف ✓ · {self.current_path.name}")
 
     def _sheet_changed(self, sheet):
         if sheet:

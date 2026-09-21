@@ -1,6 +1,14 @@
-# Excel Power Engine v0.10
+# Excel Power Engine v0.11
 
-محرك Excel/XLSM متعدد المسارات مع ذكاء الخلايا، الإدخال الشامل، البحث، التنسيق، الحدود، الدمج، الطباعة، PDF وواجهة عربية.
+منصة Excel/XLSM ذكية متعددة المسارات مع فهم أوامر طبيعية، فهم دلالي للمصنف، تحرير يدوي، بحث، تنسيق، حدود، دمج، طباعة، PDF وواجهة عربية حديثة.
+
+## أبرز v0.11
+- Command Box عربي يحوّل الأوامر الطبيعية إلى Intent وخطة تنفيذ قابلة للمعاينة.
+- Semantic Workbook يربط أسماء الأعمدة الحقيقية بالنطاقات المكتشفة، مع Confidence/Ambiguity.
+- قوائم منسدلة ديناميكية للأوراق والأعمدة والنطاقات والخلايا المكتشفة من الملف المرفوع.
+- Smart Inspector + Smart Suggestions + Operation History.
+- عمليات جديدة: عرض العمود، ارتفاع الصف، إخفاء/إظهار، محاذاة والتفاف النص.
+- نفس Workspace/Verification/Backup/Rollback الخاص بـ v0.10 لكل تنفيذ ذكي.
 
 ## أبرز v0.10
 - WorkbookSession مركزي يثبت بصمة الملف ويشارك السياق بين Workspace وGUI.
@@ -41,6 +49,9 @@ excel-power merge file.xlsx --sheet Sheet1 --ranges "A1:C1"
 # PDF
 excel-power export-pdf file.xlsm --sheet "الشهر الخامس" --ranges "A1:AI332" --output-pdf report.pdf
 
+# فهم أمر طبيعي دون تنفيذ
+excel-power command-plan file.xlsx "لوّن عمود الطلاب بالأحمر" --sheet "الطلاب"
+
 # Workflow
 excel-power workflow-plan file.xlsm --workflow examples/workflow_demo.json --output result.xlsm
 excel-power workflow-run file.xlsm --workflow examples/workflow_demo.json --output result.xlsm
@@ -60,3 +71,9 @@ excel-power workflow-run file.xlsm --workflow examples/workflow_demo.json --outp
 - ينشئ Workspace manifest بجانب الناتج (`.transaction.json`) ويستخدمه rollback لتحديد backup.
 - التحقق البصري له سياسة `optional` أو `required`؛ تتطلب السياسة الثانية Excel/Windows وهدفًا بصريًا قابلًا للفتح.
 - Arabic GUI tab: `مساحة العمل الذكية`.
+
+## v0.11 — Smart Excel Platform
+
+تضيف v0.11 طبقة فهم أوامر طبيعية فوق محرك v0.10، مع فهم دلالي لأسماء الأعمدة، قوائم منسدلة مشتقة من الملف، Preview، تصنيف المخاطر، Smart Inspector، الاقتراحات الذكية، وسجل العمليات، مع الحفاظ على Verification Gate وRollback.
+
+راجع `docs/V11_SMART_PLATFORM_AR.md`.

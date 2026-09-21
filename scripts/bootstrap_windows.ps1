@@ -7,4 +7,5 @@ $Py=Join-Path $Root '.venv\\Scripts\\python.exe'
 & $Py -m pip install --upgrade pip
 if($Full){ & $Py -m pip install -e '.[full,dev]' } else { & $Py -m pip install -e '.[dev]' }
 & $Py -m pytest -q
-Write-Host 'Excel Power Engine v0.6.0 is ready.' -ForegroundColor Green
+$Version = (Get-Content (Join-Path $Root 'VERSION.txt') -Raw).Trim()
+Write-Host "Excel Power Engine v$Version is ready." -ForegroundColor Green

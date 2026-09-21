@@ -207,6 +207,43 @@ class ExcelOperations:
                     target.merge()
         return self._run(source, output, "unmerge" if unmerge else "merge", action, visible=visible, backup=backup)
 
+    def column_width(self, source, sheet, ranges, *, output=None, width=20, visible=False, backup=True):
+        def action(book):
+            sht = self._sheet(book, sheet)
+            for raw in ranges:
+                for spec in parse_target_specs(str(raw)):
+                    if spec.kind != "column":
+                        raise ValueError(f"column-width requires a column target: {raw}")
+                    start, end = num_to_col(spec.start_col), num_to_col(spec.end_col)
+                    sht.range(f"{start}:{end}").column_width = float(width)
+        return self._run(source, output, "column-width", action, visible=visible, backup=backup)
+
+    def row_height(self, source, sheet, ranges, *, output=None, height=18, visible=False, backup=True):
+        def action(book):
+            sht = self._sheet(book, sheet)
+            for raw in ranges:
+                for spec in parse_target_specs(str(raw)):
+                    if spec.kind != "row":
+                        raise ValueError(f"row-height requires a row target: {raw}")
+                    sht.range(f"{spec.start_row}:{spec.end_row}").row_height = float(height)
+        return self._run(source, output, "row-height", action, visible=visible, backup=backup)
+
+    def visibility(self, source, sheet, ranges, *, output=None, axis="column", hidden=True, visible=False, backup=True):
+        def action(book):
+            sht = self._sheet(book, sheet)
+            for raw in ranges:
+                for spec in parse_target_specs(str(raw)):
+                    if axis == "column" and spec.kind == "column":
+                        sht.range(f"{num_to_col(spec.start_col)}:{num_to_col(spec.end_col)}").api.Hidden = bool(hidden)
+                    elif axis == "row" and spec.kind == "row":
+                        sht.range(f"{spec.start_row}:{spec.end_row}").api.Hidden = bool(hidden)
+                    else:
+                        raise ValueError(f"visibility axis={axis} requires matching target: {raw}")
+        return self._run(source, output, "visibility", action, visible=visible, backup=backup)
+
+    def alignment(self, source, sheet, ranges, *, output=None, horizontal=None, vertical=None, wrap=None, visible=False, backup=True):
+        return self.format(source, sheet, ranges, output=output, horizontal=horizontal, vertical=vertical, wrap=wrap, visible=visible, backup=backup)
+
     def print_setup(self, source, sheet, *, output=None, print_area=None, orientation=None, paper_size=None, fit_width=None, fit_height=None, repeat_rows=None, repeat_columns=None, visible=False, backup=True):
         def action(book):
             sht = self._sheet(book, sheet)

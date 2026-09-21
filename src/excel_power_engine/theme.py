@@ -70,6 +70,15 @@ def stylesheet(palette: ThemePalette) -> str:
     QHeaderView::section {{ background: {palette.header}; color: {palette.text}; border: none; padding: 5px; }}
     QTableCornerButton::section {{ background: {palette.header}; border: none; }}
     QToolTip {{ background: {palette.surface}; color: {palette.text}; border: 1px solid {palette.border}; }}
+    QFrame#hero {{ background: {palette.surface}; border: 1px solid {palette.border}; border-radius: 14px; }}
+    QLabel#heroTitle {{ font-size: 20pt; font-weight: 700; color: {palette.text}; }}
+    QLabel#heroSubtitle {{ color: {palette.text_muted}; font-size: 10pt; }}
+    QLabel#statusPill {{ background: {palette.surface_alt}; border: 1px solid {palette.border}; border-radius: 12px; padding: 6px 12px; color: {palette.text_muted}; }}
+    QLineEdit#commandBox {{ min-height: 42px; border-radius: 10px; padding: 8px 14px; font-size: 11pt; }}
+    QPushButton#primaryButton {{ min-height: 42px; border-radius: 10px; font-weight: 600; }}
+    QTabBar::tab {{ min-width: 110px; }}
+    QListWidget::item {{ padding: 6px; }}
+    QSplitter::handle {{ background: {palette.border}; }}
     """
 
 

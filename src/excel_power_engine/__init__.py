@@ -22,7 +22,7 @@ __all__=[
     'SmartEditEngine','SmartPlan','build_plan',
     'CellSnapshot','cell_info','trace_formula','formula_issues','extract_references',
     'BulkChange','parse_matrix','bulk_preview_file','bulk_execute_file',
-    'SearchHit','search_workbook','WorkbookContext','SheetContext','analyze_workbook','WorkbookSession','TargetSet','SearchResultSet','VerificationResult','verify_workbook_change','TargetSpec','parse_target_specs','resolve_target_specs','ExcelOperations','run_workflow','validate_workflow',
+    'SearchHit','search_workbook','WorkbookContext','SheetContext','analyze_workbook','WorkbookSession','TargetSet','SearchResultSet','VerificationResult','verify_workbook_change','TargetSpec','parse_target_specs','resolve_target_specs','ExcelOperations','run_workflow','validate_workflow','CommandIntent','CommandPlan','parse_command','build_command_plan','SemanticWorkbook','SemanticCandidate','SemanticResolution','normalize_text','inspect_cell','smart_suggestions','classify_operation','SAFE','WARNING','HIGH_RISK','OperationHistory',
 ]
 
 from .search_engine import SearchHit, search_workbook
@@ -33,3 +33,10 @@ from .workflow import run_workflow, validate_workflow
 from .workbook_context import WorkbookContext, SheetContext, analyze_workbook
 from .session import WorkbookSession, TargetSet, SearchResultSet
 from .verification import VerificationResult, verify_workbook_change
+
+from .command_intelligence import CommandIntent, CommandPlan, parse_command, build_command_plan
+from .semantic_engine import SemanticWorkbook, SemanticCandidate, SemanticResolution, normalize_text
+from .inspector import inspect_cell
+from .suggestions import smart_suggestions
+from .risk import classify_operation, SAFE, WARNING, HIGH_RISK
+from .history import OperationHistory

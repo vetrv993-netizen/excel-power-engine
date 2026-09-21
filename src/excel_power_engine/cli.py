@@ -155,6 +155,12 @@ def cmd_workspace_run(path, workflow_file, output, visible, no_backup, no_open):
 def cmd_workspace_rollback(output):
     emit(rollback_workspace(output))
 
+def cmd_command_plan(path, command, sheet):
+    from .workbook_context import analyze_workbook
+    from .command_intelligence import build_command_plan
+    ctx = analyze_workbook(path, selected_sheet=sheet)
+    emit(build_command_plan(command, ctx, sheet=sheet).as_dict())
+
 
 def main():
     p=argparse.ArgumentParser(prog='excel-power')
@@ -188,6 +194,7 @@ def main():
     a=sub.add_parser('workspace-plan');a.add_argument('path');a.add_argument('--workflow',required=True)
     a=sub.add_parser('workspace-run');a.add_argument('path');a.add_argument('--workflow',required=True);a.add_argument('--output',required=True);a.add_argument('--visible',action='store_true');a.add_argument('--no-backup',action='store_true');a.add_argument('--no-open',action='store_true')
     a=sub.add_parser('workspace-rollback');a.add_argument('output')
+    a=sub.add_parser('command-plan');a.add_argument('path');a.add_argument('text');a.add_argument('--sheet')
 
     x=p.parse_args()
     if x.command=='gui':
@@ -222,6 +229,7 @@ def main():
     elif x.command=='workspace-plan': cmd_workspace_plan(x.path,x.workflow)
     elif x.command=='workspace-run': cmd_workspace_run(x.path,x.workflow,x.output,x.visible,x.no_backup,x.no_open)
     elif x.command=='workspace-rollback': cmd_workspace_rollback(x.output)
+    elif x.command=='command-plan': cmd_command_plan(x.path,x.text,x.sheet)
     return 0
 
 if __name__=='__main__':raise SystemExit(main())

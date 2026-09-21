@@ -58,7 +58,7 @@ def _load_ops(operations: list[dict[str, Any]] | dict[str, Any] | str | Path) ->
 def validate_workspace_operations(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     allowed = {
         "search", "bulk", "keyed-bulk", "format", "borders", "merge", "unmerge",
-        "print-setup", "pdf", "open-excel"
+        "print-setup", "pdf", "open-excel", "column-width", "row-height", "visibility", "alignment"
     }
     out=[]
     for i, op in enumerate(operations, 1):
@@ -69,7 +69,7 @@ def validate_workspace_operations(operations: list[dict[str, Any]]) -> list[dict
             raise ValueError(f"Unsupported workspace operation: {kind}")
         if kind not in {"search", "pdf"} and not op.get("sheet"):
             raise ValueError(f"Operation {kind} requires sheet")
-        if kind in {"format", "borders", "merge", "unmerge"}:
+        if kind in {"format", "borders", "merge", "unmerge", "column-width", "row-height", "visibility", "alignment"}:
             ranges=op.get("ranges") or []
             if isinstance(ranges, str):
                 ranges=[x.strip() for x in ranges.split(";") if x.strip()]
@@ -251,12 +251,24 @@ def run_workspace(source: str | Path | WorkbookSession, operations: list[dict[st
                     rows=[x for x in rows if str(x.get(payload["source_key_field"], "")).strip() not in known]
                 result=keyed_execute(working, sheet, payload["target_key_column"], rows, payload["source_key_field"], payload["mapping"], next_path, create_backup=False)
                 current_sheet=sheet; current_cell=(plan["changes"][0].cell if plan["changes"] else current_cell)
-            elif kind in {"format","borders","merge","unmerge","print-setup"}:
+            elif kind in {"format","borders","merge","unmerge","print-setup","column-width","row-height","visibility","alignment"}:
                 xo=ExcelOperations()
-                if kind=="format": result=xo.format(working,sheet,ranges,output=next_path,fill=payload.get("fill"),font_color=payload.get("font_color"),bold=payload.get("bold"),italic=payload.get("italic"),font_size=payload.get("font_size"),horizontal=payload.get("horizontal"),vertical=payload.get("vertical"),wrap=payload.get("wrap"),number_format=payload.get("number_format"),visible=visible,backup=False)
-                elif kind=="borders": result=xo.borders(working,sheet,ranges,output=next_path,line_style=payload.get("line_style"),weight=payload.get("weight"),color=payload.get("color"),visible=visible,backup=False)
-                elif kind in {"merge","unmerge"}: result=xo.merge(working,sheet,ranges,output=next_path,unmerge=(kind=="unmerge"),visible=visible,backup=False)
-                else: result=xo.print_setup(working,sheet,output=next_path,print_area=payload.get("print_area"),orientation=payload.get("orientation"),paper_size=payload.get("paper_size"),fit_width=payload.get("fit_width"),fit_height=payload.get("fit_height"),repeat_rows=payload.get("repeat_rows"),repeat_columns=payload.get("repeat_columns"),visible=visible,backup=False)
+                if kind=="format":
+                    result=xo.format(working,sheet,ranges,output=next_path,fill=payload.get("fill"),font_color=payload.get("font_color"),bold=payload.get("bold"),italic=payload.get("italic"),underline=payload.get("underline"),font_size=payload.get("font_size"),horizontal=payload.get("horizontal"),vertical=payload.get("vertical"),wrap=payload.get("wrap"),number_format=payload.get("number_format"),visible=visible,backup=False)
+                elif kind=="borders":
+                    result=xo.borders(working,sheet,ranges,output=next_path,line_style=payload.get("line_style"),weight=payload.get("weight"),color=payload.get("color"),visible=visible,backup=False)
+                elif kind in {"merge","unmerge"}:
+                    result=xo.merge(working,sheet,ranges,output=next_path,unmerge=(kind=="unmerge"),visible=visible,backup=False)
+                elif kind=="column-width":
+                    result=xo.column_width(working,sheet,ranges,output=next_path,width=payload.get("width",20),visible=visible,backup=False)
+                elif kind=="row-height":
+                    result=xo.row_height(working,sheet,ranges,output=next_path,height=payload.get("height",18),visible=visible,backup=False)
+                elif kind=="visibility":
+                    result=xo.visibility(working,sheet,ranges,output=next_path,axis=payload.get("axis","column"),hidden=payload.get("hidden",True),visible=visible,backup=False)
+                elif kind=="alignment":
+                    result=xo.alignment(working,sheet,ranges,output=next_path,horizontal=payload.get("horizontal"),vertical=payload.get("vertical"),wrap=payload.get("wrap"),visible=visible,backup=False)
+                else:
+                    result=xo.print_setup(working,sheet,output=next_path,print_area=payload.get("print_area"),orientation=payload.get("orientation"),paper_size=payload.get("paper_size"),fit_width=payload.get("fit_width"),fit_height=payload.get("fit_height"),repeat_rows=payload.get("repeat_rows"),repeat_columns=payload.get("repeat_columns"),visible=visible,backup=False)
                 current_sheet=sheet; current_cell=(ranges[0].split(":",1)[0] if ranges else current_cell)
             elif kind=="pdf":
                 pdf=Path(payload["output_pdf"]).resolve()
